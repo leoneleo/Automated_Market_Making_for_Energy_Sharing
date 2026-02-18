@@ -1,7 +1,43 @@
-# Automated_Market_Making_for_Energy_Sharing
+# Automated Market Making for Energy Sharing
 
-https://arxiv.org/abs/2512.24432
+This is a repository with source code for the paper ["Automated Market Making for Energy Sharing"](https://arxiv.org/abs/2512.24432) 
 
-Michele Fabi, Viraj Nadkarni, Leonardo Leone, Matheus X.V. Ferreira
+## Abstract
 
-    We develop an axiomatic theory for Automated Market Makers (AMMs) in local energy sharing markets and analyze the Markov Perfect Equilibrium of the resulting economy with a Mean-Field Game. In this game, heterogeneous prosumers solve a Bellman equation to optimize energy consumption, storage, and exchanges. Our axioms identify a class of mechanisms with linear, Lipschitz continuous payment functions, where prices decrease with the aggregate supply-to-demand ratio of energy. We prove that implementing batch execution and concentrated liquidity allows standard design conditions from decentralized finance-quasi-concavity, monotonicity, and homotheticity-to construct AMMs that satisfy our axioms. The resulting AMMs are budget-balanced and achieve ex-ante efficiency, contrasting with the strategy-proof, expost optimal VCG mechanism. Since the AMM implements a Potential Game, we solve its equilibrium by first computing the social planner's optimum and then decentralizing the allocation. Numerical experiments using data from the Paris administrative region suggest that the prosumer community can achieve gains from trade up to 40% relative to the grid-only benchmark. 
+We develop an axiomatic theory for Automated Market Makers (AMMs) in local energy sharing markets and analyze the Markov Perfect Equilibrium of the resulting economy with a Mean-Field Game. In this game, heterogeneous prosumers solve a Bellman equation to optimize energy consumption, storage, and exchanges. Our axioms identify a class of mechanisms with linear, Lipschitz continuous payment functions, where prices decrease with the aggregate supply-to-demand ratio of energy. We prove that implementing batch execution and concentrated liquidity allows standard design conditions from decentralized finance-quasi-concavity, monotonicity, and homotheticity-to construct AMMs that satisfy our axioms.
+
+The resulting AMMs are budget-balanced and achieve ex-ante efficiency, contrasting with the strategy-proof, expost optimal VCG mechanism. Since the AMM implements a Potential Game, we solve its equilibrium by first computing the social planner's optimum and then decentralizing the allocation. Numerical experiments using data from the Paris administrative region suggest that the prosumer community can achieve gains from trade up to 40% relative to the grid-only benchmark.
+
+## Repository structure
+
+- `rolling_horizon` - 
+- `pricing_function` -
+- `NE_grid` -
+- `dataset` 
+
+## Dataset
+
+Dataset and depth values can be found in the following .csv files:
+- `consumption.csv` - Curves generated for energy consumption in Paris during 2023. Data is based on real consumption information from **[RTE]()**.
+- `solar.csv` - Curves generated for solar energy production in Paris during 2023.https://open-meteo.com/en/docs/historical-weather-api
+- `eolic.csv`  - Curves generated for solar energy production in Paris during 2023.
+- `depth.csv` - Depth values for consumption, solar, and eolic energy computed using **[data-depth package](https://data-depth.github.io/)**. 
+
+## Authors
+
+* **Michele Fabi** - Telecom Paris, CREST, IP Paris.
+* **Viraj Nadkarni** - Princeton University.
+* **Leonardo Leone** - Telecom Paris, CREST, IP Paris.
+* **Matheus X.V. Ferreira** - University of Virginia.
+
+## License
+
+
+## Acknowledgments
+
+* A
+
+## Contributing
+
+Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of
+conduct, and the process for submitting pull requests to us.
