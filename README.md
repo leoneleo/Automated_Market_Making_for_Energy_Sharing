@@ -10,11 +10,10 @@ The resulting AMMs are budget-balanced and achieve ex-ante efficiency, contrasti
 
 ## Functions and code structure
 
-- `supDem` - 
-- `rollingHorizon` - 
-- `pricingFunction` -
-- `NE_grid` -
-- `dataset` - 
+- `supDem.py` - Python functions for Supply and demand creation.
+- `rollingHorizon.py` - Prosumer-Level Gains from Decentralization code.
+- `pricingFunction.py` - Grid-Level Gains from Decentralization.
+- `data` - Folder with datasets used for paper results.
 
 ## Dataset
 
@@ -30,20 +29,13 @@ Dataset and depth values can be found in the following .csv files:
 
 ## Authors
 
-* **Michele Fabi** - Telecom Paris, CREST, IP Paris.
-* **Viraj Nadkarni** - Princeton University.
-* **Leonardo Leone** - Telecom Paris, CREST, IP Paris.
-* **Matheus X.V. Ferreira** - University of Virginia.
+- **Michele Fabi** - Telecom Paris, CREST, IP Paris.
+- **Viraj Nadkarni** - Princeton University.
+- **Leonardo Leone** - Telecom Paris, CREST, IP Paris.
+- **Matheus X.V. Ferreira** - University of Virginia.
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
-
-* A
-
-## Contributing
-
-Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of
-conduct, and the process for submitting pull requests to us.

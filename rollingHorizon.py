@@ -164,3 +164,91 @@ def generate_commuter_profile(base_index, base_load=0.2, morning_peak=1.5, eveni
     final_profile = (base_load + profile + noise) * seasonal_factor
 
     return pd.DataFrame({'demand_kw': final_profile})
+
+
+def runRH(T,TotalDays,alpha_base_yearly,b0_initial,L_input,
+          omega_yearly,s_others_yearly,d_others_yearly,
+          new_demand_profile,pct_flex,alpha_base_yearly_T,
+          B, X, K_max,
+          lam_under, lam_over, gamma_hourly,
+          ):
+    time_interval = 24 / T
+
+
+    # Initialize result storage
+    k_dayT, xnet_dayT, soc_dayT = np.zeros((TotalDays, T)), np.zeros((TotalDays, T)), np.zeros((TotalDays, T))
+    b_historyT = []
+
+    unique_days = alpha_base_yearly.index.normalize().unique()
+    b0 = b0_initial
+
+    # Define the number of days for the optimization horizon
+    # --- CHANGE 1: Define num_days_in_horizon ---
+    num_days_in_horizon = L_input + 1
+    objTotal = []
+
+    # Wrap the range with tqdm() to create the progress bar
+    print("Running rolling-horizon simulation...")
+    for i in range(TotalDays):
+        current_day = unique_days[i]
+
+        # Define the lookahead horizon
+        start_horizon = current_day
+        # --- CHANGE 2: Extend the end of the horizon by one day ---
+        end_horizon = current_day + pd.Timedelta(days=num_days_in_horizon)
+
+        # Slice all yearly data for the FULL lookahead window
+        # The slicing now correctly fetches L+1 days of data
+        omega_horizon = omega_yearly.loc[start_horizon:end_horizon - pd.Timedelta(minutes=15)]['supply_kw'].values
+        alpha_base_horizon = alpha_base_yearly.loc[start_horizon:end_horizon - pd.Timedelta(minutes=15)].values
+        s_others_horizon = s_others_yearly.loc[start_horizon:end_horizon - pd.Timedelta(minutes=15)]['supply_kw'].values
+        d_others_horizon = d_others_yearly.loc[start_horizon:end_horizon - pd.Timedelta(minutes=15)]['demand_kw'].values
+
+        # Calculate alpha_flex for each day in the horizon
+        alpha_flex_day_horizon = []
+        # --- CHANGE 3: Loop over the correct number of days ---
+        for d in range(num_days_in_horizon):
+            day_in_horizon = current_day + pd.Timedelta(days=d)
+            # Sum the total demand for the day
+            total_daily_demand_power_sum = new_demand_profile['demand_kw'].loc[day_in_horizon:day_in_horizon + pd.Timedelta(days=1) - pd.Timedelta(minutes=15)].sum()
+            total_daily_demand_energy = total_daily_demand_power_sum * time_interval
+
+
+            # Calculate the flexible portion
+            alpha_flex_for_day = pct_flex * total_daily_demand_energy
+            alpha_flex_day_horizon.append(alpha_flex_for_day)
+
+        # Call the solver - THIS CALL REMAINS THE SAME
+        # The data passed to it is now correctly shaped
+        obj, k_h, x_pos_h, x_neg_h, = solve_horizon(
+            T, L_input, B, b0,
+            omega_horizon, alpha_base_horizon,
+            alpha_flex_day_horizon, X, K_max,
+            lam_under, lam_over, gamma_hourly,
+            use_amm=True,
+            s_others_horizon=s_others_horizon,
+            d_others_horizon=d_others_horizon,
+        )
+        alpha_base_yearly_T[i]=alpha_flex_day_horizon
+
+        # --- ERROR HANDLING: Add a check for solver failure ---
+        if obj is None:
+            print(f"Solver failed for day {i}. Stopping simulation.")
+            break
+        objTotal.append(obj)
+        # Extract results for the first day of the horizon
+        k_day = k_h[:T]
+        xnet_day = x_pos_h[:T] - x_neg_h[:T]
+        soc_day = b0 + np.cumsum(k_day)
+
+        # Store results
+        k_dayT[i] = k_day
+        xnet_dayT[i] = xnet_day
+        soc_dayT[i] = soc_day
+        b_historyT.append(b0)
+
+        # Advance the starting battery state for the next day's simulation
+        b0 = soc_day[-1]
+
+    b_historyT.append(b0) # Append the final state
+    print("Simulation complete.")

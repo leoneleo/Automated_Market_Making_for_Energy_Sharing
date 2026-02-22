@@ -9,7 +9,7 @@ import sys, os
 
 
 def getWeather(lat=48.8534, lon=2.3488,
-               solarPanel=1.6 , panelEf=.12):
+               solarPanel=1.6 , panelEf=.15):
     # Setup the Open-Meteo API client with cache and retry on error
     cache_session = requests_cache.CachedSession('.cache', expire_after = -1)
     retry_session = retry(cache_session, retries = 5, backoff_factor = 0.2)
@@ -52,9 +52,9 @@ def getWeather(lat=48.8534, lon=2.3488,
     hourly_data["wind_speed_10m"] = hourly_wind_speed_10m
     hourly_data["global_tilted_irradiance"] = hourly_global_tilted_irradiance/2
     hourly_data["cloud_cover"] = hourly_cloud_cover
-    hourly_data["tilted_irrad_cover"]=((1-(hourly_data["cloud_cover"]/100))*hourly_data["global_tilted_irradiance"])
-    hourly_data["kW_per_panel"]=hourly_data["tilted_irrad_cover"]*solarPanel*panelEf/1000
-    hourly_data["kw_turbine"] = 0.01328 * (.25) * ((hourly_data["wind_speed_10m"]/3.6*2.23694)**3)/1000
+    # hourly_data["tilted_irrad_cover"]=((1 - (hourly_data["cloud_cover"] / 100)) * hourly_data["global_tilted_irradiance"])
+    # hourly_data["kW_per_panel"]=hourly_data["tilted_irrad_cover"]*solarPanel*panelEf/1000
+    # hourly_data["kw_turbine"] = 0.01328 * (.25) * ((hourly_data["wind_speed_10m"]/3.6*2.23694)**3)/1000
     hourly_dataframe = pd.DataFrame(data = hourly_data)
 
     df_solar=pd.DataFrame()
@@ -62,8 +62,7 @@ def getWeather(lat=48.8534, lon=2.3488,
     df_solar["date"]=pd.to_datetime(df_solar.dateFull).dt.strftime('%Y-%m-%d %H:00:00')
     df_solar["date"]=pd.to_datetime(df_solar["date"])
     
-    df_to_join=hourly_dataframe[["date","temperature_2m","wind_speed_10m","global_tilted_irradiance", "cloud_cover",
-                                 "kW_per_panel","kw_turbine"]]
+    df_to_join=hourly_dataframe[["date","temperature_2m","wind_speed_10m","global_tilted_irradiance", "cloud_cover",]]
     df_to_join["date"]=pd.to_datetime(df_to_join["date"]).dt.tz_localize(None)
     df_solar=df_solar.merge(df_to_join,how='left', left_on='date', right_on='date')
  
@@ -71,7 +70,15 @@ def getWeather(lat=48.8534, lon=2.3488,
 
 
 
-def SupDem(directory_path = 'data', demand_data_path ='data/consumptionParis.csv', save=True):
+def SupDem(demand_data_path ='data/consumptionParis.csv',
+           solar_data_path = 'data/weatherInfo.csv',
+           save=True,
+           lat=48.8534, lon=2.3488, year=2023,
+            solarPanel=1.6 , panelEf=.12,
+            buildings_in_community = 1000,
+            avg_people_per_building = 4,
+            grand_paris_population = 12000000):
+
     """
     Parameters
     
@@ -90,48 +97,45 @@ def SupDem(directory_path = 'data', demand_data_path ='data/consumptionParis.csv
         d_others_yearly
             Demand
     """
-    
     try:
-        if not os.path.exists(directory_path):
-            print(f"Directory not found: {directory_path}")
-            print("Please set 'directory_path' to the location of your CSV files.")
-            directory_path = '.' # Fallback to current directory
-    except NameError:
-        print("Setting 'directory_path' to the current directory.")
-        directory_path = '.'
-
-    try:
-        dfEnergy = getWeather()
+        df_solar = pd.read_csv(solar_data_path, sep=";")
         # Create a proper datetime index
-        dfEnergy['datetime'] = pd.to_datetime(dfEnergy['dateFull'])
-        dfEnergy.set_index('datetime', inplace=True)
+        df_solar['datetime'] = pd.to_datetime(df_solar['dateFull'])
+        df_solar.set_index('datetime', inplace=True)
+
+        # Calculate community's total solar power generation in kW
+        df_solar["tilted_irrad_cover"] = ((1 - (df_solar["cloud_cover"] / 100)) * df_solar["global_tilted_irradiance"])
+        solar_panel_area = 1.6
+        panel_efficiency = 0.15
+        df_solar["kw_per_panel"] = df_solar["tilted_irrad_cover"] * solar_panel_area * panel_efficiency / 1000
+        # df_solar["kw_turbine"] = .5 * .3 * 1.293 * np.pi * (1.9**2) * ((df_solar["wind_speed_10m"]/3.6)**3)/1000
+        df_solar["kw_turbine"] = 0.01328 * (.25) * ((df_solar["wind_speed_10m"]/3.6*2.23694)**3)/1000
 
         # --- SCALING IMPROVEMENT ---
         # Increased the number of panels for a more realistic community supply
         num_panels_community = round((87836 - 7800) * 0.001) * 400 # Changed from 100 to 400
         print(f"Adjusted number of community panels to: {num_panels_community}")
-
         # Correct scaling to kW
-        s_others_yearly = dfEnergy["kW_per_panel"] * num_panels_community
-        e_others_yearly = dfEnergy["kw_turbine"] * num_panels_community
+        s_others_yearly = df_solar["kw_per_panel"] * num_panels_community
+        e_others_yearly = df_solar["kw_turbine"] * num_panels_community
     except FileNotFoundError:
         print(f"Error: An error occured. Please check the path.")
         s_others_yearly = None
 
     
     try:
-        df_demand = pd.read_csv(demand_data_path, delimiter=";")
+        dfDemand = pd.read_csv(demand_data_path, delimiter=";")
         # Filter for the year 2023
-        df_demand["Date"] = pd.to_datetime(df_demand["Date"], format='mixed')
-        df_demand = df_demand[df_demand.Date.dt.year == 2023].copy()
+        dfDemand["Date"] = pd.to_datetime(dfDemand["Date"], format='mixed')
+        dfDemand = dfDemand[dfDemand.Date.dt.year == 2023].copy()
 
         # Create a proper datetime index
-        df_demand['datetime'] = pd.to_datetime(df_demand['Date'].astype(str) + ' ' + df_demand['Heures'])
-        df_demand.set_index('datetime', inplace=True)
+        dfDemand['datetime'] = pd.to_datetime(dfDemand['Date'].astype(str) + ' ' + dfDemand['Heures'])
+        dfDemand.set_index('datetime', inplace=True)
 
         # --- PLOTTING FIX ---
         # Sort the index to ensure chronological order for correct plotting
-        df_demand.sort_index(inplace=True)
+        dfDemand.sort_index(inplace=True)
 
         # Define scaling factor for the community
         buildings_in_community = 1000
@@ -139,22 +143,52 @@ def SupDem(directory_path = 'data', demand_data_path ='data/consumptionParis.csv
         community_population = buildings_in_community * avg_people_per_building
         grand_paris_population = 12000000
         scaling_factor = community_population / grand_paris_population
+        dfDemand = dfDemand[["Consommation(MW)"]]* scaling_factor * 1000
+        dfDemand.rename(columns={"Consommation(MW)":"consumption"}, inplace=True)
+        d_others_yearly = dfDemand["consumption"] 
 
-        # Calculate community demand in kW
-        d_others_yearly = df_demand["Consommation(MW)"] * scaling_factor * 1000
 
     except FileNotFoundError:
         print(f"Error: Could not find '{os.path.basename(demand_data_path)}'. Please check the path.")
         d_others_yearly = None
     # --- 3. Save the generated data to CSV files ---
     if save==True:
-        if s_others_yearly is not None:
+        if s_others_yearly is not None and e_others_yearly is not None:
 
-            (s_others_yearly+e_others_yearly).to_csv( 'data/s_others_yearly.csv', header=['supply_kw'])
+            s_others_yearly.to_csv( 'data/s_others_yearly.csv',)
+            e_others_yearly.to_csv( 'data/e_others_yearly.csv',)
             print("\nSaved s_others_yearly.csv")
+            print("\nSaved e_others_yearly.csv")
 
         if d_others_yearly is not None:
-            d_others_yearly.to_csv('data/d_others_yearly.csv', header=['demand_kw'])
+            d_others_yearly.to_csv('data/d_others_yearly.csv',)
             print("Saved d_others_yearly.csv")
     
-    return s_others_yearly,e_others_yearly, d_others_yearly
+    return dfDemand, s_others_yearly,e_others_yearly
+
+
+def indSupDem(
+        dfDemand, s_others_yearly,e_others_yearly,
+        DEMAND_SCALING_FACTOR = 1000,
+        SUPPLY_SCALING_FACTOR = 500,
+        DEMAND_NOISE_FACTOR = 0.15,
+        SUPPLY_NOISE_FACTOR = 0.10):
+    
+
+    d_others_yearly = dfDemand["consumption"]
+    n = len(d_others_yearly) # Get the number of data points
+    noise_demand_multiplier = np.random.normal(1, DEMAND_NOISE_FACTOR, n)
+    individual_demand = (d_others_yearly / DEMAND_SCALING_FACTOR) * noise_demand_multiplier
+    # Ensure demand doesn't go below a minimum realistic value (e.g., fridge, router)
+    individual_demand[individual_demand < 0.05] = 0.05
+
+    # Create the individual supply profile
+    n = len(s_others_yearly) # Get the number of data points
+    noise_supply_multiplier = np.random.normal(1, SUPPLY_NOISE_FACTOR, n)
+    individual_supplySolar = ((s_others_yearly) / SUPPLY_SCALING_FACTOR) * noise_supply_multiplier
+    individual_supplyWind = ((e_others_yearly) / SUPPLY_SCALING_FACTOR) * noise_supply_multiplier
+    # Ensure supply doesn't go below zero
+    individual_supplySolar[individual_supplySolar < 0] = 0
+    individual_supplyWind[individual_supplyWind < 0] = 0
+
+    return individual_supplySolar,individual_supplyWind,individual_demand
