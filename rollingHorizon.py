@@ -171,6 +171,8 @@ def runRH(T,TotalDays,alpha_base_yearly,b0_initial,L_input,
           new_demand_profile,pct_flex,alpha_base_yearly_T,
           B, X, K_max,
           lam_under, lam_over, gamma_hourly,
+          individual_demand_profile,
+          save=False, savePath="simulation_results_original_360.csv"
           ):
     time_interval = 24 / T
 
@@ -252,3 +254,39 @@ def runRH(T,TotalDays,alpha_base_yearly,b0_initial,L_input,
 
     b_historyT.append(b0) # Append the final state
     print("Simulation complete.")
+    
+    # --- 1. Reshape the daily results into continuous arrays ---
+    k_series = k_dayT.flatten()
+    xnet_series = xnet_dayT.flatten()
+    soc_series = soc_dayT.flatten()
+
+    # --- 2. Create a datetime index for the simulation period ---
+    sim_start_day = unique_days[0]
+    # Calculate the end timestamp for the simulation period
+    sim_end_day = unique_days[TotalDays - 1] + pd.Timedelta(days=1) - pd.Timedelta(minutes=15)
+    results_index = pd.date_range(start=sim_start_day, end=sim_end_day, freq='15min')
+
+    # --- 3. Gather all relevant input and output data into a DataFrame ---
+    # Slice the input data to match the simulation period
+    sim_slice = slice(sim_start_day, sim_end_day)
+
+    results_df = pd.DataFrame({
+        # --- INPUTS ---
+        'prosumer_generation_kw': omega_yearly.loc[sim_slice]['supply_kw'].values,
+        'prosumer_total_demand_kw': individual_demand_profile.loc[sim_slice]['demand_kw'].values,
+        'prosumer_base_demand_kw': alpha_base_yearly.loc[sim_slice].values,
+        'community_supply_kw': s_others_yearly.loc[sim_slice]['supply_kw'].values,
+        'community_demand_kw': d_others_yearly.loc[sim_slice]['demand_kw'].values,
+        # --- OUTPUTS ---
+        'battery_charge_discharge_kw': k_series,
+        'net_grid_trade_kw': xnet_series, # xnt - We decompose xnt into non-negative power sold, snt = max{xnt, 0}, and power bought, dnt = max{−xnt, 0}.
+        'battery_soc_kwh': soc_series
+    }, index=results_index)
+
+
+    # --- 4. Save the DataFrame to a CSV file ---
+    if save:
+        results_df.to_csv(savePath)
+        print("Successfully saved all results to 'simulation_results.csv'.")
+
+    return results_df
