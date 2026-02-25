@@ -172,7 +172,8 @@ def indSupDem(
         DEMAND_SCALING_FACTOR = 1000,
         SUPPLY_SCALING_FACTOR = 500,
         DEMAND_NOISE_FACTOR = 0.15,
-        SUPPLY_NOISE_FACTOR = 0.10):
+        SUPPLY_NOISE_FACTOR = 0.10,
+        save=False):
     
 
     d_others_yearly = dfDemand["consumption"]
@@ -185,10 +186,17 @@ def indSupDem(
     # Create the individual supply profile
     n = len(s_others_yearly) # Get the number of data points
     noise_supply_multiplier = np.random.normal(1, SUPPLY_NOISE_FACTOR, n)
-    individual_supplySolar = ((s_others_yearly) / SUPPLY_SCALING_FACTOR) * noise_supply_multiplier
-    individual_supplyWind = ((e_others_yearly) / SUPPLY_SCALING_FACTOR) * noise_supply_multiplier
+    individual_supply = ((s_others_yearly+e_others_yearly) / SUPPLY_SCALING_FACTOR) * noise_supply_multiplier
+    # individual_supplyWind = (() / SUPPLY_SCALING_FACTOR) * noise_supply_multiplier
     # Ensure supply doesn't go below zero
-    individual_supplySolar[individual_supplySolar < 0] = 0
-    individual_supplyWind[individual_supplyWind < 0] = 0
+    individual_supply[individual_supply < 0] = 0
+    # individual_supplyWind[individual_supplyWind < 0] = 0
+    if save==True:
+        individual_demand.to_csv('data/individual_demand_profile.csv', header=['demand_kw'])
+        print("Successfully saved 'individual_demand_profile.csv'.")
 
-    return individual_supplySolar,individual_supplyWind,individual_demand
+        individual_supply.to_csv('data/individual_supply_profile.csv', header=['supply_kw'])
+        print("Successfully saved 'individual_supply_profile.csv'.")
+
+
+    return individual_supply,individual_demand
