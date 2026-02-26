@@ -290,3 +290,59 @@ def runRH(T,TotalDays,alpha_base_yearly,b0_initial,L_input,
         print("Successfully saved all results to 'simulation_results.csv'.")
 
     return results_df
+
+
+def AMMproft(k_dayT,T,s_others_daily,
+             d_others_daily,lam_under,lam_over,
+             save=False):
+    
+    x_pos_no_amm_dayT = np.zeros((TotalDays, T))
+    x_neg_no_amm_dayT = np.zeros((TotalDays, T))
+    # AMM results (energy in kWh)
+    xnet_series_amm = k_dayT.flatten() # Assuming this is meant to be xnet_dayT
+    x_pos_amm_energy = np.maximum(xnet_series_amm, 0)
+    x_neg_amm_energy = np.maximum(-xnet_series_amm, 0)
+
+    # NO AMM results (energy in kWh)
+    xnet_series_no_amm = x_pos_no_amm_dayT.flatten() - x_neg_no_amm_dayT.flatten()
+    x_pos_no_amm_energy = np.maximum(xnet_series_no_amm, 0)
+    x_neg_no_amm_energy = np.maximum(-xnet_series_no_amm, 0)
+
+    # Common data
+    TotalSteps = len(xnet_series_amm)
+    TotalDays = TotalSteps // T
+    s_others_power = s_others_daily.flatten()
+    d_others_power = d_others_daily.flatten()
+    lam_under_yearly = np.tile(lam_under, TotalDays)[:TotalSteps]
+    lam_over_yearly = np.tile(lam_over, TotalDays)[:TotalSteps]
+
+    # --- 2. Perform Diagnostic Profit Calculations ---
+
+    # --- Test A: AMM Profit Calculation NO IMPACT ---
+    # Price is calculated IGNORING the prosumer's own trades.
+    r_sim_NI, c_sim_NI = price_curves(s_others_power, d_others_power, lam_under_yearly, lam_over_yearly)
+    profits_amm_NI = (x_pos_amm_energy * r_sim_NI) - (x_neg_amm_energy * c_sim_NI)
+    cum_profits_amm_NI = np.cumsum(profits_amm_NI)
+    print(f"Profit with AMM (NI Calculation): €{cum_profits_amm_NI[-1]:.2f}")
+
+    # --- Test B: AMM Profit Calculation IMPACT ---
+    # Price is calculated INCLUDING the prosumer's own trades.
+    time_interval = 24 / T
+    x_pos_amm_power = x_pos_amm_energy / time_interval
+    x_neg_amm_power = x_neg_amm_energy / time_interval
+    s_total_power = s_others_power + x_pos_amm_power
+    d_total_power = d_others_power + x_neg_amm_power
+    r_sim_exact, c_sim_exact = price_curves(s_total_power, d_total_power, lam_under_yearly, lam_over_yearly)
+    profits_amm_exact = (x_pos_amm_energy * r_sim_exact) - (x_neg_amm_energy * c_sim_exact)
+    cum_profits_amm_exact = np.cumsum(profits_amm_exact)
+    print(f"Profit with AMM (Exact Calculation): €{cum_profits_amm_exact[-1]:.2f}")
+
+
+    # --- Test C: NO AMM Profit (Original) ---
+    profits_no_amm = (x_pos_no_amm_energy * lam_over_yearly) - (x_neg_no_amm_energy * lam_under_yearly) # Corrected order
+    cum_profits_no_amm = np.cumsum(profits_no_amm)
+    print(f"Profit without AMM (Original): €{cum_profits_no_amm[-1]:.2f}")
+    if save==True:
+        np.savetxt("cum_profits_amm_exact.txt",cum_profits_amm_exact,)
+        np.savetxt("cum_profits_no_amm.txt",cum_profits_no_amm,)
+    return cum_profits_amm_exact, cum_profits_no_amm

@@ -400,3 +400,32 @@ def plotLag(results,xnet_daily,t_daily):
     ax.tick_params(axis='both',labelsize=15)
     plt.tight_layout()
     plt.show()
+
+
+def plotcumProf(T,s_others_yearly,
+                cum_profits_amm_exact,
+                cum_profits_no_amm):
+    TotalSteps = 34560
+    TotalDays = TotalSteps // T
+    dates = s_others_yearly.index[:TotalSteps]
+    fig, ax1 = plt.subplots(1, 1, figsize=(16, 6), sharex=True)
+    skip=2000
+    ax2=ax1.twinx()
+    lp1=ax1.plot(dates[skip:], (1-cum_profits_amm_exact[skip:]/cum_profits_no_amm[skip:])*100, 
+            label='Prosumer Percentage Gain', color='black', linewidth=2)
+    ax1.set_ylabel('Percentage of spends saved with AMM(%)', fontsize=16)
+    ax1.grid(True, linestyle='--', alpha=0.6)
+    ax1.set_xlabel("Date",fontsize=16)
+    lp2=ax2.plot(dates,cum_profits_no_amm, "-.",
+            label='Prosumer Profit Gain Without AMM', color='red', linewidth=2)
+    lp3=ax2.plot(dates,cum_profits_amm_exact, "--",
+            label='Prosumer Profit Gain With AMM', color='green', linewidth=2)
+
+    lns = lp1+lp2+lp3
+    labs = [l.get_label() for l in lns]
+    ax1.legend(lns, labs, loc=0, fontsize=16)
+    ax1.tick_params(axis='both', which='major', labelsize=16)
+    ax2.tick_params(axis='y', which='major', labelsize=16)
+    ax2.set_ylabel('Cumulative Profit (€)', fontsize=16)
+    plt.tight_layout(rect=[0, 0, 1, 0.95])
+    plt.show()
