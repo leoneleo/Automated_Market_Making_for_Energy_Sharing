@@ -429,3 +429,98 @@ def plotcumProf(T,s_others_yearly,
     ax2.set_ylabel('Cumulative Profit (€)', fontsize=16)
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     plt.show()
+
+def plotSimData(conSin,windSin,solarSin,DC,DE,DS,dfDemand,summerStart,summerEnd):
+    
+    colors = ["#00008B", "#32CD32", "#FFFF00", "#FF8C00", "#00008B","#8900FA"]
+    nodes = [0.0, 0.25, 0.5, 0.75, 1.0]
+    fig=plt.figure(figsize=(18,5))
+    # GeneratedCurvesWind=np.zeros((1000,96))
+    start=summerStart
+    end=summerEnd
+    # Compute depth
+    XVALS=[int(col[:2]) if col[3:5]=="00" else col[:5] for col in dfDemand.index.astype(str).str[11:].values[:96]]
+
+    plt.subplot(1, 3, 1)
+    norm = mcolors.Normalize(vmin=min(DC), vmax=max(DC))
+    cmap = plt.cm.plasma
+    for i in range(conSin.shape[0]):plt.plot(XVALS,conSin[i], color=cmap(norm(DC[i])),alpha=.5)
+    plt.xticks(range(0,4*24,16))
+
+    plt.tick_params(axis='both', which='major', labelsize=12)
+    plt.xlabel("Hour of the day", fontsize=16)
+    plt.ylabel("Power [kW]", fontsize=16)
+    plt.title("Sintetic consumption", fontsize=16)
+    plt.grid()
+    # plt.gca().xaxis.set_major_formatter(md.DateFormatter('%H'))
+
+    plt.subplot(1, 3, 2)
+    norm = mcolors.Normalize(vmin=min(DE), vmax=max(DE))
+    cmap = plt.cm.plasma
+    for i in range(windSin.shape[0]):plt.plot(XVALS,windSin[i], color=cmap(norm(DE[i])),alpha=.5)
+    plt.xticks(range(0,4*24,16))
+    plt.tick_params(axis='both', which='major', labelsize=12)
+
+
+    plt.xlabel("Hour of the day", fontsize=16)
+    plt.ylabel("Power [kW]", fontsize=16)
+    plt.title("Sintetic Eolic Production", fontsize=16)
+    plt.grid()
+
+    plt.subplot(1, 3, 3)
+    norm = mcolors.Normalize(vmin=min(DS), vmax=max(DS))
+    cmap = plt.cm.plasma
+    for i in range(solarSin.shape[0]):plt.plot(XVALS,solarSin[i], color=cmap(norm(DS[i])),alpha=.5)
+    plt.xticks(range(0,4*24,16))
+    plt.tick_params(axis='both', which='major', labelsize=12)
+    plt.grid()
+    plt.xlabel("Hour of the day", fontsize=16)
+    plt.ylabel("Power [kW]", fontsize=16)
+    plt.title("Sintetic Solar production", fontsize=16)
+    plt.tight_layout()
+    plt.show()
+
+def plotDepthHist(DCN,DSN,DEN):
+    fig, (ax1,ax2) = plt.subplots(1,2,figsize=(16, 8))
+    x=DCN.copy()
+    values, base = np.histogram(x, bins=40)
+    cumulative = np.cumsum(values)/1000
+    ax2.plot(base[:-1], cumulative, c='green', label="Energy Consumption")
+    x=DSN.copy()
+    values, base = np.histogram(x, bins=40)
+    cumulative = np.cumsum(values)/1000
+    ax2.plot(base[:-1], cumulative, c='red', label="Solar Production")
+    x=DEN.copy()
+    values, base = np.histogram(x, bins=40)
+    cumulative = np.cumsum(values)/1000
+    ax2.plot(base[:-1], cumulative, c='blue', label="Eolic Production")
+
+
+    ax2.grid(True)
+    ax2.set_title('Uniform distribution to depth mapping')
+    ax2.set_xlabel('Depth value')
+    ax2.set_ylabel('Likelihood of occurrence')
+    ax2.legend()
+
+    n_bins=50
+    # plot the cumulative histogram
+    x=DCN.copy()
+    n, bins, patches = ax1.hist(x, n_bins, density=True,color='green', label="Energy Consumption",alpha=.75)
+    x=DEN.copy()
+    n, bins, patches = ax1.hist(x, n_bins, density=True,color='red', label="Solar Production",alpha=.75)
+    x=DSN.copy()
+    n, bins, patches = ax1.hist(x, n_bins, density=True,color='blue', label="Eolic Production",alpha=.75)
+
+    # Overlay a reversed cumulative histogram.
+    # ax.hist(x, bins=bins, density=True, histtype='step', cumulative=-1,
+    #         label='Reversed emp.')
+
+    # tidy up the figure
+    ax1.grid(True)
+    ax1.legend(loc='right')
+    ax1.set_title('Depth value distribution histogram')
+    ax1.set_xlabel('Depth value')
+    # ax1.set_ylabel('Likelihood of occurrence')
+
+    plt.tight_layout()
+    plt.show()
