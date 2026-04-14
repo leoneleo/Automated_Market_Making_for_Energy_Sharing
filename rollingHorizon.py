@@ -294,23 +294,91 @@ def runRH(T,TotalDays,alpha_base_yearly,b0_initial,L_input,
 
 def AMMproft(k_dayT,T,s_others_daily,
              d_others_daily,lam_under,lam_over,
-             save=False):
-    
+             xnet_dayT,b0_initial,alpha_base_yearly,L_input,B,
+             omega_yearly,individual_demand_profile,pct_flex,X,K_max,gamma_hourly,
+             save=False,
+             pathamm="data/cum_profits_amm_exact.txt",
+             pathNoamm="data/cum_profits_no_amm.txt"):
+    print("Calculating profits with AMM...")
+    xnet_series = xnet_dayT.flatten()
+    TotalSteps = len(xnet_series)
+    TotalDays = TotalSteps // T
+    time_interval = 24 / T
+    x_pos_sim = np.maximum(xnet_series, 0)
+    x_neg_sim = np.maximum(-xnet_series, 0)
+    lam_under_yearly = np.tile(lam_under, TotalDays)[:TotalSteps]
+    lam_over_yearly = np.tile(lam_over, TotalDays)[:TotalSteps]
+    s_others_series = s_others_daily.flatten() # Assuming s_others_daily exists from main sim
+    d_others_series = d_others_daily.flatten() # Assuming d_others_daily exists from main sim
+    r_sim, c_sim = price_curves(s_others_series, d_others_series, lam_under_yearly, lam_over_yearly)
+
+
+
+
+    print("\nStarting counterfactual simulation without AMM...")
+
+    # Initialize result storage
+    k_no_amm_dayT = np.zeros((TotalDays, T))
     x_pos_no_amm_dayT = np.zeros((TotalDays, T))
     x_neg_no_amm_dayT = np.zeros((TotalDays, T))
+    b0_no_amm = b0_initial # Reset initial battery state
+
+    # Get list of unique days for looping
+    unique_days = alpha_base_yearly.index.normalize().unique()
+    for i in range(TotalDays):
+        current_day = unique_days[i]
+        num_days_in_horizon = L_input + 1
+        start_horizon = current_day
+        end_horizon = current_day + pd.Timedelta(days=num_days_in_horizon)
+
+        omega_horizon = omega_yearly.loc[start_horizon:end_horizon - pd.Timedelta(minutes=15)]['supply_kw'].values
+        alpha_base_horizon = alpha_base_yearly.loc[start_horizon:end_horizon - pd.Timedelta(minutes=15)].values
+
+        # --- MODIFIED: Correct calculation for flexible ENERGY target ---
+        alpha_flex_day_horizon = []
+        for d in range(num_days_in_horizon):
+            day_in_horizon = current_day + pd.Timedelta(days=d)
+            # Sum of power (kW)
+            total_daily_demand_power_sum = individual_demand_profile['demand_kw'].loc[day_in_horizon:day_in_horizon + pd.Timedelta(days=1) - pd.Timedelta(minutes=15)].sum()
+            # Convert to Energy (kWh)
+            total_daily_demand_energy = total_daily_demand_power_sum * time_interval
+            # Calculate flexible energy portion
+            alpha_flex_for_day = pct_flex * total_daily_demand_energy
+            alpha_flex_day_horizon.append(alpha_flex_for_day)
+
+        # Call the corrected solver
+        obj, k_h, x_pos_h, x_neg_h = solve_horizon(
+            T, L_input, B, b0_no_amm,
+            omega_horizon, alpha_base_horizon,
+            alpha_flex_day_horizon, X, K_max,
+            lam_under, lam_over, gamma_hourly,
+            use_amm=False
+        )
+
+        if obj is not None:
+            k_no_amm_dayT[i, :] = k_h[:T]
+            x_pos_no_amm_dayT[i, :] = x_pos_h[:T]
+            x_neg_no_amm_dayT[i, :] = x_neg_h[:T]
+            b0_no_amm = b0_no_amm + np.sum(k_h[:T]) # Corrected state update for clarity
+        else:
+            print(f"Counterfactual simulation stopped at day {i} due to solver failure.")
+            break
+    print("Counterfactual simulation complete.")
     # AMM results (energy in kWh)
     xnet_series_amm = k_dayT.flatten() # Assuming this is meant to be xnet_dayT
+    TotalSteps = len(xnet_series_amm)
+    TotalDays = TotalSteps // T
     x_pos_amm_energy = np.maximum(xnet_series_amm, 0)
     x_neg_amm_energy = np.maximum(-xnet_series_amm, 0)
 
     # NO AMM results (energy in kWh)
+    x_pos_no_amm_dayT = np.zeros((TotalDays, T))
+    x_neg_no_amm_dayT = np.zeros((TotalDays, T))
     xnet_series_no_amm = x_pos_no_amm_dayT.flatten() - x_neg_no_amm_dayT.flatten()
     x_pos_no_amm_energy = np.maximum(xnet_series_no_amm, 0)
     x_neg_no_amm_energy = np.maximum(-xnet_series_no_amm, 0)
 
     # Common data
-    TotalSteps = len(xnet_series_amm)
-    TotalDays = TotalSteps // T
     s_others_power = s_others_daily.flatten()
     d_others_power = d_others_daily.flatten()
     lam_under_yearly = np.tile(lam_under, TotalDays)[:TotalSteps]
@@ -343,6 +411,6 @@ def AMMproft(k_dayT,T,s_others_daily,
     cum_profits_no_amm = np.cumsum(profits_no_amm)
     print(f"Profit without AMM (Original): €{cum_profits_no_amm[-1]:.2f}")
     if save==True:
-        np.savetxt("cum_profits_amm_exact.txt",cum_profits_amm_exact,)
-        np.savetxt("cum_profits_no_amm.txt",cum_profits_no_amm,)
+        np.savetxt(pathamm,cum_profits_amm_exact,)
+        np.savetxt(pathNoamm,cum_profits_no_amm,)
     return cum_profits_amm_exact, cum_profits_no_amm

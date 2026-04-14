@@ -13,13 +13,13 @@ from matplotlib.lines import Line2D
 
 def plotSummerWeek(indDemand,indSupply,
                    start_date_summer = '2023-07-11',
-                   end_date_summer = '2023-07-17'):
+                   end_date_summer = '2023-07-17',city="Paris"):
     myFmt = mdates.DateFormatter('%m-%d')
     fig, (ax1,ax2) = plt.subplots(1, 2, figsize=(16, 5))
     # Plot 1: Sample Summer Week
     ax1.plot(indDemand.loc[start_date_summer:end_date_summer], label="Energy Demand", color='crimson', linewidth=2)
     ax1.plot((indSupply).loc[start_date_summer:end_date_summer], label="Solar Supply", color='blue', linewidth=2)
-    ax1.set_title(f"Paris Summer Week: {start_date_summer} to {end_date_summer}", fontsize=18)
+    ax1.set_title(f"{city} Summer Week: {start_date_summer} to {end_date_summer}", fontsize=18)
     ax1.set_ylabel("Power (kW)", fontsize=16)
     ax1.grid(True, linestyle='--', alpha=0.6)
     ax1.tick_params(axis='both', which='major', labelsize=14)
@@ -30,7 +30,7 @@ def plotSummerWeek(indDemand,indSupply,
     ax2.plot(indDemand.loc[start_date_winter:end_date_winter], label="Energy Demand", color='crimson', linewidth=2)
     ax2.plot((indSupply).loc[start_date_winter:end_date_winter], label="Solar Supply", color='blue', linewidth=2)
     ax2.set_xlabel("Date", fontsize=16)
-    ax2.set_title(f"Paris Winter Week: {start_date_winter} to {end_date_winter}", fontsize=18)
+    ax2.set_title(f"{city} Winter Week: {start_date_winter} to {end_date_winter}", fontsize=18)
     ax2.set_ylabel("Power (kW)", fontsize=16)
     ax2.legend(fontsize=12)
     ax2.grid(True, linestyle='--', alpha=0.6)

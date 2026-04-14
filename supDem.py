@@ -77,7 +77,7 @@ def SupDem(demand_data_path ='data/consumptionParis.csv',
             solarPanel=1.6 , panelEf=.12,
             buildings_in_community = 1000,
             avg_people_per_building = 4,
-            grand_paris_population = 12000000):
+            population = 12000000):
 
     """
     Parameters
@@ -138,11 +138,11 @@ def SupDem(demand_data_path ='data/consumptionParis.csv',
         dfDemand.sort_index(inplace=True)
 
         # Define scaling factor for the community
-        buildings_in_community = 1000
-        avg_people_per_building = 4
+        # buildings_in_community = 1000
+        # avg_people_per_building = 4
         community_population = buildings_in_community * avg_people_per_building
-        grand_paris_population = 12000000
-        scaling_factor = community_population / grand_paris_population
+        # grand_paris_population = 12000000
+        scaling_factor = community_population / population
         dfDemand = dfDemand[["Consommation(MW)"]]* scaling_factor * 1000
         dfDemand.rename(columns={"Consommation(MW)":"consumption"}, inplace=True)
         d_others_yearly = dfDemand["consumption"] 
