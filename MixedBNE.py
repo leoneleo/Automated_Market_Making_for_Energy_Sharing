@@ -694,7 +694,7 @@ def check_indifference_principle(
 
 def MBNE(centerC_curve, centerS_curve, centerW_curve,
          cumulativeC,cumulativeS,cumulativeW,centerC_depth,centerS_depth,centerW_depth,
-         T,
+         T,N,NUM_EPOCHS,
          SP=0.0886,HP=0.2146,HC= 0.1696,
          filepath = 'mpe_simulation_results.pkl',save=False):
         # --- 1. Simulation Setup ---
@@ -702,8 +702,8 @@ def MBNE(centerC_curve, centerS_curve, centerW_curve,
     L_HORIZON = 3   # (MPC) Lookahead of 3 days (Current day + 2 future days)
     H_HORIZON = T_EPOCH * L_HORIZON # Total steps in optimization (288)
 
-    N = 1000        # Number of agents
-    NUM_EPOCHS = 20  # (MPC) Total days to simulate (e.g., 5 days) # QUANTOS DIAS
+    # N = 1000        # Number of agents
+    # NUM_EPOCHS = 20  # (MPC) Total days to simulate (e.g., 5 days) # QUANTOS DIAS
 
     # (NEW) Define the per-epoch discount factor
     GAMMA_EPOCH = 0.98
@@ -877,7 +877,7 @@ def MBNE(centerC_curve, centerS_curve, centerW_curve,
                 )
 
                 # (MPC) Project the H-plan onto the H-agent
-                feasible_plan_H = project_plan_to_agent(generic_plan_H, agent_H, par_H, L_horizon=L_HORIZON)
+                feasible_plan_H = project_plan_to_agent(generic_plan_H, agent_H, par_H,centerC_curve, L_horizon=L_HORIZON)
 
                 # (MPC) Extract the first T steps to implement
                 feasible_plan_T = Plan(
